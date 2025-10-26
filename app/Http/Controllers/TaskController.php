@@ -46,7 +46,7 @@ class TaskController extends Controller
         $data = $request->validate([
             'title'       => ['sometimes','string','max:255'],
             'description' => ['sometimes','nullable','string','max:2000'],
-            'status'      => ['sometimes','in:pending,in_progress,done'],
+            'status'      => ['sometimes','in:in_progress,done'],
         ]);
 
         $task->update($data);

@@ -1,5 +1,30 @@
 {{-- resources/views/auth/login.blade.php --}}
 <x-guest-layout>
+  {{-- Bootstrap CSS --}}
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous">
+
+  <style>
+    :root{
+      --brand-accent: #60a5fa; /* soft blue */
+    }
+    /* Brand */
+    .nav-brand{
+      font-weight: 800;
+      letter-spacing: .3px;
+      position: relative;
+      transition: transform .2s ease, color .2s ease;
+    }
+    .nav-brand:hover{
+      color: var(--brand-accent) !important;
+      transform: translateY(-1px);
+      text-shadow: 0 2px 8px rgba(96,165,250,.35);
+    }
+
+  </style>
+
   <div class="container">
     <div class="row justify-content-center">
       <div class="col-12 col-lg-10 col-xl-9">
@@ -9,8 +34,10 @@
             <div class="col-md-5 d-none d-md-flex align-items-center justify-content-center p-4 brand-side">
               <div class="text-center px-3">
                 {{-- Optional: your logo --}}
-                {{-- <img src="{{ asset('logo.svg') }}" alt="Logo" class="mb-3" style="height:48px"> --}}
-                <h1 class="h3 mb-2">{{ config('app.name', 'Laravel') }}</h1>
+                    <a class="navbar-brand nav-brand" href="{{ route('tasks.index') }}">Manager</a>
+
+
+
                 <p class="mb-0 text-muted" style="color:#9ca3af !important;">
                   Welcome back! Sign in to manage your tasks.
                 </p>

@@ -16,7 +16,7 @@ public function up(): void
         $table->foreignId('user_id')->constrained()->cascadeOnDelete();
         $table->string('title');
         $table->text('description')->nullable();
-        $table->enum('status', ['in_progress','done'])->default('pending');
+        $table->enum('status', ['in_progress','done'])->default('in_progress');
         $table->timestamps();
     });
 }

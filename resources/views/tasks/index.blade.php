@@ -1,187 +1,155 @@
-<x-layout title="My Tasks">
-  
-  {{-- Page styles (scoped to this page) --}}
+<x-layout title="Activities">
+
   <style>
-    .task-badge { text-transform: capitalize; }
-    .truncate-2 {
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    body {
+      background-color: #f8f9fa;
     }
-    .list-group-item:hover { background-color: #f9fafb; }
-    .status-select { min-width: 150px; }
+    .todo-container {
+      max-width: 600px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 1.5rem;
+    }
+    .todo-header {
+      font-weight: 600;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid #eee;
+    }
+    .todo-item:last-child {
+      border-bottom: none;
+    }
+    .todo-label {
+      flex: 1;
+      margin-left: 0.75rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .todo-label.done {
+      text-decoration: line-through;
+      color: #999;
+    }
+    .todo-edit-input {
+      flex: 1;
+      margin-left: 0.75rem;
+      border: none;
+      font-size: 1rem;
+      padding: 0.25rem 0.5rem;
+      outline: none;
+    }
+    .todo-add {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 0.75rem;
+    }
+    .todo-add input {
+      border: none;
+      flex: 1;
+      outline: none;
+      font-size: 1rem;
+      padding: 0.5rem 0.75rem;
+    }
+    .todo-add button {
+      border: none;
+      background: none;
+      color: #007bff;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1.25rem;
+    }
+    .todo-actions form {
+      display: inline;
+    }
   </style>
 
-  {{-- Feedback --}}
-  @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-      {{ session('success') }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-  @endif
-  @if($errors->any())
-    <div class="alert alert-danger">
-      <ul class="mb-0">
-        @foreach($errors->all() as $e) <li>{{ $e }}</li> @endforeach
-      </ul>
-    </div>
-  @endif
+  <div class="todo-container">
+    <div class="todo-header">To Do List</div>
 
-  {{-- Header + Filter --}}
-  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3 gap-2">
-    <div>
-      <h1 class="h4 mb-1">Your Tasks</h1>
-      <div class="text-muted small">
-        {{ $tasks->total() }} total
-        @if($status) • filtered by <strong>{{ str_replace('_',' ', $status) }}</strong> @endif
-      </div>
-    </div>
-
-    <form method="GET" class="d-flex align-items-center gap-2">
-      <label for="status" class="form-label mb-0 visually-hidden">Filter status</label>
-      <select id="status" name="status" class="form-select status-select" onchange="this.form.submit()">
-        <option value="">All statuses</option>
-        <option value="in_progress" {{ $status==='in_progress'?'selected':'' }}>In-Progress</option>
-        <option value="done" {{ $status==='done'?'selected':'' }}>Done</option>
-      </select>
-      @if($status)
-        <a href="{{ route('tasks.index') }}" class="btn btn-outline-secondary">Clear</a>
-      @endif
+    {{-- Add new task first --}}
+    <form method="POST" action="{{ route('tasks.store') }}" class="todo-add">
+      @csrf
+      <input type="text" name="title" placeholder="Add new activity..." required>
+      <button type="submit">＋</button>
     </form>
-  </div>
 
-  {{-- Add Task --}}
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <h2 class="h5 mb-3">Add Task</h2>
-      <form method="POST" action="{{ route('tasks.store') }}" class="row g-3">
-        @csrf
+    {{-- Existing tasks --}}
+    @foreach($tasks as $task)
+      <div class="todo-item" data-task-id="{{ $task->id }}">
+        {{-- Checkbox + label (click to edit) --}}
+        <form method="POST" action="{{ route('tasks.update', $task) }}" class="status-form" style="display:flex; align-items:center; width:100%;">
+          @csrf
+          @method('PATCH')
+          <input type="hidden" name="status" value="in_progress">
+          <input type="checkbox" name="status" value="done" onchange="this.form.submit()" {{ $task->status === 'done' ? 'checked' : '' }}>
 
-        <div class="col-12 col-md-5">
-          <div class="form-floating">
-            <input id="title" name="title" class="form-control" placeholder=" " required>
-            <label for="title">Task title</label>
-          </div>
-        </div>
+          {{-- Label (becomes editable on double-click) --}}
+          <span class="todo-label {{ $task->status === 'done' ? 'done' : '' }}" ondblclick="enableEdit({{ $task->id }}, '{{ addslashes($task->title) }}')">
+            {{ $task->title }}
+          </span>
+        </form>
 
-        <div class="col-12 col-md-5">
-          <div class="form-floating">
-            <input id="description" name="description" class="form-control" placeholder=" ">
-            <label for="description">Description (optional)</label>
-          </div>
-        </div>
-
-        <div class="col-12 col-md-2 d-grid">
-          <button class="btn btn-primary" type="submit">Add</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {{-- Task List --}}
-  @if($tasks->count())
-    <div class="list-group list-group-flush border rounded shadow-sm">
-      @foreach($tasks as $task)
-        <div class="list-group-item">
-          <div class="row align-items-center g-3">
-            {{-- Title + meta --}}
-            <div class="col-12 col-lg-6">
-              <div class="d-flex align-items-start justify-content-between gap-2">
-                <div>
-                  <div class="fw-semibold">{{ $task->title }}</div>
-                  @if($task->description)
-                    <div class="text-muted small mt-1 truncate-2">{{ $task->description }}</div>
-                  @endif
-                  <div class="text-muted small mt-1">
-                    Created {{ $task->created_at->diffForHumans() }}
-                  </div>
-                </div>
-                {{-- Status badge (read-only visual) --}}
-                @php
-                  $badgeClass = match($task->status) {
-                    'done' => 'bg-success',
-                    'in_progress' => 'bg-warning text-dark',
-                    default => 'bg-secondary'
-                  };
-                @endphp
-                <span class="badge {{ $badgeClass }} task-badge ms-2">{{ str_replace('_',' ', $task->status) }}</span>
-              </div>
-            </div>
-
-            {{-- Update Status --}}
-            <div class="col-12 col-md-4 col-lg-3">
-              <form method="POST" action="{{ route('tasks.update', $task) }}" class="d-flex align-items-center gap-2">
-                @csrf @method('PATCH')
-                <label for="status-{{ $task->id }}" class="form-label mb-0 small text-muted">Change status</label>
-                <select id="status-{{ $task->id }}" name="status" class="form-select form-select-sm"
-                        onchange="this.form.submit()" aria-label="Change status for {{ $task->title }}">
-                  <option value="pending"     @selected($task->status==='pending')>Pending</option>
-                  <option value="in_progress" @selected($task->status==='in_progress')>In-Progress</option>
-                  <option value="done"        @selected($task->status==='done')>Done</option>
-                </select>
-              </form>
-            </div>
-
-            {{-- Actions --}}
-            <div class="col-12 col-md-2 col-lg-3 d-flex justify-content-lg-end gap-2">
-              <!-- Edit Button (opens modal) -->
-              <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editTaskModal-{{ $task->id }}">
-                Edit
-              </button>
-
-              <!-- Delete -->
-              <form method="POST" action="{{ route('tasks.destroy', $task) }}"
-                    onsubmit="return confirm('Delete this task?');">
-                @csrf @method('DELETE')
-                <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        {{-- Edit Modal --}}
-        <div class="modal fade" id="editTaskModal-{{ $task->id }}" tabindex="-1" aria-labelledby="editTaskLabel-{{ $task->id }}" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <form method="POST" action="{{ route('tasks.update', $task) }}">
-                @csrf @method('PATCH')
-                <div class="modal-header">
-                  <h5 class="modal-title" id="editTaskLabel-{{ $task->id }}">Edit Task</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  <div class="form-floating mb-3">
-                    <input type="text" name="title" id="edit-title-{{ $task->id }}" class="form-control" value="{{ $task->title }}" required>
-                    <label for="edit-title-{{ $task->id }}">Title</label>
-                  </div>
-                  <div class="form-floating mb-3">
-                    <textarea name="description" id="edit-desc-{{ $task->id }}" class="form-control" style="height: 120px;" placeholder=" ">{{ $task->description }}</textarea>
-                    <label for="edit-desc-{{ $task->id }}">Description (optional)</label>
-                  </div>
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="submit" class="btn btn-primary">Save changes</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      @endforeach
-    </div>
-
-    {{-- Pagination --}}
-    <div class="mt-3 d-flex justify-content-center">
-      {{ $tasks->links() }}
-    </div>
-
-  @else
-    {{-- Empty state --}}
-    <div class="card shadow-sm">
-      <div class="card-body text-center py-5">
-        <div class="display-6 mb-2">📝</div>
-        <h2 class="h5">No tasks yet</h2>
-        <p class="text-muted mb-4">Add your first task to get started. You can track progress by changing the status to In-Progress or Done.</p>
-        <a href="#title" class="btn btn-primary">Add a task</a>
+        {{-- Delete button --}}
+        <form method="POST" action="{{ route('tasks.destroy', $task) }}" onsubmit="return confirm('Delete this item?')" style="margin-left: 0.5rem;">
+          @csrf
+          @method('DELETE')
+          <button class="btn btn-sm text-muted" style="border:none; background:none;">✕</button>
+        </form>
       </div>
-    </div>
-  @endif
+    @endforeach
+
+    @if($tasks->count())
+      <div class="mt-3 text-muted small text-center">
+        {{ $tasks->where('status', 'done')->count() }} Checked items
+      </div>
+    @endif
+  </div>
+
+  <script>
+    // Enable inline editing
+    function enableEdit(id, currentTitle) {
+      const item = document.querySelector(`[data-task-id="${id}"]`);
+      const label = item.querySelector('.todo-label');
+
+      // Replace label with input field
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentTitle;
+      input.className = 'todo-edit-input';
+      label.replaceWith(input);
+      input.focus();
+
+      // Handle save on Enter or blur
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveEdit(id, input.value);
+      });
+      input.addEventListener('blur', () => saveEdit(id, input.value));
+    }
+
+    function saveEdit(id, newTitle) {
+      if (!newTitle.trim()) return;
+
+      // Create a hidden form dynamically to submit the update
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/tasks/${id}`;
+      form.innerHTML = `
+        @csrf
+        @method('PATCH')
+        <input type="hidden" name="title" value="${newTitle.replace(/"/g, '&quot;')}">
+      `;
+      document.body.appendChild(form);
+      form.submit();
+    }
+  </script>
+
 </x-layout>
